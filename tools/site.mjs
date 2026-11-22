@@ -38,7 +38,7 @@ const HEAD_EXTRA =
   '<script src="./vendor/react-dom.production.min.js"></script>\n';
 const KEY_FILE = 'tools/site-key.json';
 const ITERATIONS = 600000;
-const MIN_PASSWORD = 10;
+const MIN_PASSWORD = 8;
 
 function fail(msg) {
   console.error('ERROR: ' + msg);
