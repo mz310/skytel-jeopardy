@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Skytel Jeopardy — Нэвтрэх</title>
+<link rel="icon" href="uploads/skytel-colored.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;}
+html,body{margin:0;min-height:100%;background:#0147C3;color:#1f2328;font-family:'Manrope',system-ui,sans-serif;}
+main{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;padding:24px;}
+.brand{display:flex;align-items:center;gap:16px;}
+.brand img{height:56px;width:auto;display:block;}
+.brand span{font-family:'Montserrat',sans-serif;font-weight:700;font-size:15px;letter-spacing:4px;color:#ffffff;text-transform:uppercase;}
+.card{width:100%;max-width:400px;background:#ffffff;border-radius:16px;padding:28px;display:flex;flex-direction:column;gap:16px;box-shadow:0 20px 60px rgba(0,0,0,.3);}
+h1{margin:0;font-family:'Montserrat',sans-serif;font-weight:800;font-size:24px;line-height:1.2;}
+.field{display:flex;flex-direction:column;gap:6px;}
+label{font-weight:700;font-size:14px;color:#3d434a;}
+input[type=text],input[type=password]{width:100%;background:#f6f7f5;border:1px solid #8a9199;border-radius:10px;padding:12px 14px;font:600 16px 'Manrope',system-ui,sans-serif;color:#1f2328;}
+input[type=text]:focus,input[type=password]:focus{outline:3px solid #FF6833;outline-offset:1px;border-color:#0147C3;}
+.remember{display:flex;align-items:center;gap:10px;font-weight:600;font-size:14px;color:#3d434a;}
+.remember input{width:18px;height:18px;accent-color:#0147C3;}
+button{border:0;cursor:pointer;background:#0147C3;color:#ffffff;padding:14px 20px;border-radius:999px;font:800 16px 'Manrope',system-ui,sans-serif;}
+button:hover{background:#013ca8;}
+button:focus-visible{outline:3px solid #FF6833;outline-offset:2px;}
+button[disabled]{opacity:.6;cursor:progress;}
+.error{margin:0;min-height:20px;font-weight:700;font-size:14px;color:#b3261e;}
+.wait{color:#ffffff;font-weight:700;font-size:16px;}
+[hidden]{display:none!important;}
+</style>
+</head>
+<body>
+<main>
+  <div class="brand"><img src="uploads/skytel-colored.png" alt="Skytel"><span>Jeopardy</span></div>
+  <p class="wait" id="wait">Ачаалж байна…</p>
+  <form class="card" id="login" hidden novalidate>
+    <h1>Админ нэвтрэх</h1>
+    <div class="field">
+      <label for="user">Нэвтрэх нэр</label>
+      <input id="user" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+    </div>
+    <div class="field">
+      <label for="pass">Нууц үг</label>
+      <input id="pass" name="password" type="password" autocomplete="current-password" required>
+    </div>
+    <label class="remember"><input id="remember" type="checkbox"> Энэ төхөөрөмж дээр сануулах</label>
+    <p class="error" id="error" role="alert"></p>
+    <button type="submit" id="submit">Нэвтрэх</button>
+  </form>
+</main>
+<script id="site-payload" type="application/json">__PAYLOAD__</script>
+<script>
+(function () {
+  var P = JSON.parse(document.getElementById('site-payload').textContent);
+  var STORE = 'skytel-jeopardy-auth-' + P.kid;
+  var subtle = window.crypto && window.crypto.subtle;
+  var form = document.getElementById('login'), wait = document.getElementById('wait');
+  var errorEl = document.getElementById('error'), submit = document.getElementById('submit');
+
+  function bytes(b64) { var s = atob(b64), a = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) a[i] = s.charCodeAt(i); return a; }
+  function text(a) { var s = ''; for (var i = 0; i < a.length; i++) s += String.fromCharCode(a[i]); return btoa(s); }
+  function saved(store) { try { return store.getItem(STORE); } catch (e) { return null; } }
+  function save(store, v) { try { if (v === null) store.removeItem(STORE); else store.setItem(STORE, v); } catch (e) {} }
+
+  function derive(user, pass) {
+    var input = new TextEncoder().encode(user.trim().toLowerCase() + '\n' + pass);
+    return subtle.importKey('raw', input, 'PBKDF2', false, ['deriveBits']).then(function (k) {
+      return subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: bytes(P.kdf.salt), iterations: P.kdf.iterations }, k, 256);
+    }).then(function (bits) { return new Uint8Array(bits); });
+  }
+  // Rejects when the key is wrong: AES-GCM refuses to decrypt the private key.
+  function unlock(rawKey) {
+    return subtle.importKey('raw', rawKey, 'AES-GCM', false, ['decrypt']).then(function (kek) {
+      return subtle.decrypt({ name: 'AES-GCM', iv: bytes(P.priv.iv) }, kek, bytes(P.priv.ct));
+    }).then(function (pkcs8) {
+      return subtle.importKey('pkcs8', pkcs8, { name: 'RSA-OAEP', hash: 'SHA-256' }, false, ['decrypt']);
+    }).then(function (priv) {
+      return subtle.decrypt({ name: 'RSA-OAEP' }, priv, bytes(P.wk));
+    }).then(function (raw) {
+      return subtle.importKey('raw', raw, 'AES-GCM', false, ['decrypt']);
+    }).then(function (ck) {
+      return subtle.decrypt({ name: 'AES-GCM', iv: bytes(P.iv) }, ck, bytes(P.ct));
+    }).then(function (plain) { return new TextDecoder().decode(plain); });
+  }
+  function show(html) { document.open(); document.write(html); document.close(); }
+  function askLogin(message) {
+    wait.hidden = true; form.hidden = false; submit.disabled = false;
+    errorEl.textContent = message || '';
+    document.getElementById(message ? 'pass' : 'user').focus();
+  }
+
+  if (!subtle) { wait.textContent = 'Энэ хуудас зөвхөн HTTPS холболтоор ажиллана.'; return; }
+
+  form.addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var user = document.getElementById('user').value, pass = document.getElementById('pass').value;
+    if (!user.trim() || !pass) { askLogin('Нэвтрэх нэр, нууц үгээ оруулна уу.'); return; }
+    submit.disabled = true; errorEl.textContent = '';
+    var remember = document.getElementById('remember').checked, key;
+    derive(user, pass).then(function (raw) { key = raw; return unlock(raw); }).then(function (html) {
+      save(sessionStorage, text(key));
+      save(localStorage, remember ? text(key) : null);
+      show(html);
+    }).catch(function () {
+      document.getElementById('pass').value = '';
+      askLogin('Нэвтрэх нэр эсвэл нууц үг буруу байна.');
+    });
+  });
+
+  var remembered = saved(sessionStorage) || saved(localStorage);
+  if (!remembered) { askLogin(''); return; }
+  unlock(bytes(remembered)).then(function (html) {
+    save(sessionStorage, remembered);
+    show(html);
+  }).catch(function () {
+    save(sessionStorage, null); save(localStorage, null);
+    askLogin('');
+  });
+})();
+</script>
+</body>
+</html>

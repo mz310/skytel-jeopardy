@@ -1,41 +1,55 @@
 # Skytel Jeopardy
 
-Статик сайт. Build алхам байхгүй, `index.html` шууд ажиллана.
+Админ нэвтрэлттэй статик сайт. Build алхам байхгүй, `index.html` шууд ажиллана.
+
+## Нэвтрэлт
+
+`index.html` нь нэвтрэх хуудас бөгөөд тоглоомын хуудас (асуулт, хариулт, логоны зургууд) дотор нь шифрлэгдсэн байдаг. Зөв нэвтрэх нэр, нууц үг оруулахад хөтөч дээр тайлагдаж нээгдэнэ. Нууц үг энэ repo-д болон сайт дээр хадгалагдаагүй.
+
+- Нэг табанд нэвтэрсэн бол дахин ачаалахад асуухгүй. Таб хаавал гарна.
+- "Энэ төхөөрөмж дээр сануулах"-ыг сонговол тухайн хөтөч дээр хадгалагдана.
+- Серверийн талын хязгаарлалт байхгүй тул нууц үг урт, таахад хэцүү байх ёстой.
+
+Нууц үг солих:
+
+```bash
+SITE_USER=admin SITE_PASSWORD='шинэ нууц үг' node tools/site.mjs init --repo .
+# дараа нь доорх sync-ийг ажиллуулж сайтыг дахин шифрлэнэ
+```
+
+Нэвтрэлт таарч байгааг шалгах:
+
+```bash
+SITE_USER=admin SITE_PASSWORD='...' node tools/site.mjs check --repo .
+```
+
+## Canvas-аас шинэчлэх
+
+Тоглоомын эх нь Claude дээрх "Skytel Jeopardy v2" хуудас. Тэндээс татсан файлуудаас сайтыг дахин угсрахдаа (нууц үг шаардахгүй):
+
+```bash
+node tools/site.mjs sync --repo . \
+  "project/Skytel Jeopardy v2.dc.html=<татсан хуудас>" \
+  "project/support.js=<татсан файл>" \
+  "project/image-slot.js=<татсан файл>" \
+  "project/.image-slots.state.json=<татсан файл>"
+```
+
+`CHANGED: ...` эсвэл `NO CHANGES` гэж хэвлэнэ. Асуулт, хариултыг зөвхөн canvas дээр засна: `index.html` шифрлэгдсэн тул гараар засах боломжгүй. Татсан эх файлуудыг repo-д commit хийж болохгүй.
 
 ## Байршуулалт
 
 Vercel төсөл `skytel-jeopardy` энэ repo-той холбогдсон. `main` рүү push хийх бүрд production дахин deploy хийгдэнэ.
 
-Гараар байршуулах бол:
-
-```bash
-npx vercel --prod
-```
-
-Framework: Other, build command хоосон, output directory `./`.
-
-## Canvas-аас шинэчлэх
-
-Тоглоомын эх нь Claude дээрх "Skytel Jeopardy v2" хуудас. Тэндээс татсан файлуудаас сайтыг дахин угсрахдаа:
-
-```bash
-python3 -I tools/sync_from_canvas.py --repo . \
-  "project/Skytel Jeopardy v2.dc.html=<татсан хуудас>" \
-  "project/support.js=<татсан файл>" \
-  "project/image-slot.js=<татсан файл>" \
-  "project/.image-slots.state.json=<татсан файл>" \
-  "project/uploads/skytel-colored.png=<татсан файл>"
-```
-
-Скрипт зөвхөн өөрчлөгдсөн файлыг бичиж, `CHANGED: ...` эсвэл `NO CHANGES` гэж хэвлэнэ. `index.html` дотор шууд засвар хийвэл дараагийн шинэчлэлээр дарагдана: асуулт, хариултыг canvas дээр засна.
-
 ## Файлууд
 
-- `index.html` — тоглоом (canvas хуудас + гарчиг, локал React-ийн script tag)
-- `.image-slots.state.json` — логоны зургууд (цэгээр эхэлсэн нуугдмал файл, заавал хамт байршина)
+- `index.html` — нэвтрэх хуудас + шифрлэгдсэн тоглоом
 - `support.js`, `image-slot.js` — ажиллуулагч скриптүүд (canvas-аас хуулсан, гараар засахгүй)
 - `vendor/` — React 18.3.1
 - `uploads/` — Skytel лого
-- `tools/sync_from_canvas.py` — canvas-аас шинэчлэх скрипт (Vercel рүү байршихгүй)
+- `tools/site.mjs` — угсрах, шифрлэх хэрэгсэл (Node 20+, нэмэлт сан шаардахгүй)
+- `tools/login.html` — нэвтрэх хуудасны загвар
+- `tools/site-key.json` — нийтийн түлхүүр ба нууц үгээр түгжигдсэн хувийн түлхүүр
+- `tools/` болон `README.md` Vercel рүү байршихгүй (`.vercelignore`)
 
 Оноо болон нээсэн асуултууд тухайн хөтчийн localStorage-д хадгалагдана.
